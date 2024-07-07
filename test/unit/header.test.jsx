@@ -1,38 +1,64 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { Home } from '../../src/client/pages/Home';
+import { MemoryRouter } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import userEvent from '@testing-library/user-event';
+import { render, cleanup } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { Application } from '../../src/client/Application';
+import { initStore } from '../../src/client/store';
+import { CartApi, ExampleApi } from '../../src/client/api';
 
-describe('Компонент Home', () => {
-  test('Отображает заголовок страницы', () => {
-    render(<Home />);
-    expect(screen.getByText(/Welcome to Kogtetochka store!/i)).toBeInTheDocument();
-  });
+describe('Компонент Header', () => {
+    const basename = '/';
+    let store;
+    let application;
 
-  test('Отображает описание ассортимента', () => {
-    render(<Home />);
-    expect(screen.getByText(/We have a large assortment of scratching posts!/i)).toBeInTheDocument();
-  });
+    beforeEach(() => {
+        const api = new ExampleApi(basename);
+        const cart = new CartApi();
+        store = initStore(api, cart);
+    
+        application = (
+            <MemoryRouter initialEntries={['/']} initialIndex={0}>
+                <Provider store={store}>
+                    <Application />
+                </Provider>
+            </MemoryRouter>
+        );
+    });
 
-  test('Отображает секцию "Stability"', () => {
-    render(<Home />);
-    expect(screen.getByRole('heading', { name: /Stability/i })).toBeInTheDocument();
-    expect(screen.getByText(/Our scratching posts are crafted with precision and designed for unparalleled stability./i)).toBeInTheDocument();
-  });
+    afterEach(() => {
+        cleanup();
+    });
 
-  test('Отображает секцию "Comfort"', () => {
-    render(<Home />);
-    expect(screen.getByRole('heading', { name: /Comfort/i })).toBeInTheDocument();
-    expect(screen.getByText(/Pamper your feline friend with the luxurious comfort of our scratching posts./i)).toBeInTheDocument();
-  });
+    it('Логотип отображается как ссылка на главную страницу', () => {
+        const { container } = render(application);
+        const logo = container.querySelector('.Application-Brand');
+        expect(logo).toHaveAttribute('href', '/');
+    });
 
-  test('Отображает секцию "Design"', () => {
-    render(<Home />);
-    expect(screen.getByRole('heading', { name: /Design/i })).toBeInTheDocument();
-    expect(screen.getByText(/Engage your cat's natural instincts and keep them entertained for hours with our interactive scratching posts./i)).toBeInTheDocument();
-  });
+    it('Пункты меню отображаются корректно', () => {
+        const { container } = render(application);
+        const items = container.querySelectorAll('.nav-link');
+        const labels = Array.from(items).map((item) => item.textContent);
+        const links = Array.from(items).map((item) => item.getAttribute('href'));
 
-  test('Отображает мотивационное сообщение', () => {
-    render(<Home />);
-    expect(screen.getByText(/Empower Your Coding Journey with Every Scratch – Get Your Paws on Our Purr-fect Scratchers Today!/i)).toBeInTheDocument();
-  });
+        expect(labels).toStrictEqual(['Catalog', 'Delivery', 'Contacts', 'Cart']);
+        expect(links).toStrictEqual(['/catalog', '/delivery', '/contacts', '/cart']);
+    });
+
+    it('Меню скрывается при клике на пункт меню', async () => {
+        const { container } = render(application);
+        const hamburger = container.querySelector('.Application-Toggler');
+        const firstItem = container.querySelector('.nav-link');
+        const menu = container.querySelector('.Application-Menu');
+
+        await userEvent.click(hamburger);
+
+        expect(menu).not.toHaveClass('collapse');
+
+        await userEvent.click(firstItem);
+
+        expect(menu).toHaveClass('collapse');
+    });
 });
